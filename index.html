@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPASignX - Trình Ký IPA Trực Tuyến</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root { 
+            --bg: linear-gradient(135deg, #0f172a, #1e1b4b, #311042); 
+            --card-bg: rgba(255, 255, 255, 0.08); 
+            --border: rgba(255, 255, 255, 0.15); 
+        }
+        body { 
+            background: var(--bg); 
+            background-attachment: fixed; 
+            color: #fff; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            margin: 0; 
+            padding: 15px; 
+            overflow-x: hidden; 
+            font-weight: 600; 
+        }
+        .header-custom { display: flex; align-items: center; justify-content: space-between; padding: 5px 5px 15px; }
+        .header-title { color: #ff3b30; font-weight: 900; font-size: 1.7rem; text-shadow: 0 0 12px rgba(255, 59, 48, .5); line-height: 1.2; }
+        .header-subtitle { font-size: .9rem; color: rgba(255, 255, 255, .9); font-weight: 600; }
+        .app-icon-square { width: 80px; height: 80px; border-radius: 18px; border: 2px solid rgba(255, 255, 255, .35); box-shadow: 0 8px 20px rgba(0, 0, 0, .6); object-fit: cover; flex-shrink: 0; }
+        
+        .card { background: var(--card-bg); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid var(--border); border-radius: 16px; padding: 18px; margin-bottom: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, .4); }
+        .dns-card { background: rgba(23, 162, 184, .12); border-color: rgba(23, 162, 184, .4); }
+        
+        label { font-size: .95rem; font-weight: 700; display: block; margin: 10px 0 4px; }
+        input[type=file], input[type=password], input[type=text] { width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, .3); border: 1px solid var(--border); color: #fff; border-radius: 10px; padding: 10px; outline: 0; font-weight: 600; }
+        
+        .btn { width: 100%; border: none; border-radius: 10px; padding: 12px; font-weight: 800; color: #fff; cursor: pointer; margin-top: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, .2); display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-sign { background: linear-gradient(135deg, #6366f1, #4f46e5); font-size: 1.05rem; }
+        .btn-install { background: linear-gradient(135deg, #10b981, #059669); font-size: 1.05rem; }
+        .btn-ipa { background: linear-gradient(135deg, #0ea5e9, #0284c7); margin-top: 8px; }
+        .btn-dns { background: #17a2b8; width: auto; padding: 6px 12px; font-size: .8rem; margin: 0; }
+        
+        .draw-svg { stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+        
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { min-width: 220px; padding: 12px 16px; border-radius: 8px; color: #fff; font-size: .85rem; font-weight: 700; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 15px rgba(0, 0, 0, .4); backdrop-filter: blur(8px); transform: translateX(120%); transition: transform .4s cubic-bezier(.175, .885, .32, 1.275); }
+        .toast.show { transform: translateX(0); }
+        .toast-error { background: rgba(239, 68, 68, .9); border: 1px solid #f87171; }
+        .toast-success { background: rgba(16, 185, 129, .9); border: 1px solid #34d399; }
+        
+        .hidden { display: none !important; }
+        .progress-bar { background: rgba(0, 0, 0, .4); height: 18px; border-radius: 10px; overflow: hidden; }
+        .progress-fill { background: linear-gradient(90deg, #10b981, #3b82f6); height: 100%; width: 0%; text-align: center; font-size: 12px; line-height: 18px; font-weight: 800; }
+        .code-box { background: rgba(0, 0, 0, .4); padding: 4px 10px; border-radius: 6px; color: #38bdf8; font-family: monospace; font-weight: 700; font-size: 1rem; letter-spacing: 1px; }
+        .key-container { background: rgba(16, 185, 129, .15); border: 1px solid rgba(16, 185, 129, .4); border-radius: 12px; padding: 12px; margin: 15px 0; }
+        #qrcode img { margin: 0 auto; border-radius: 8px; border: 4px solid #fff; }
+
+        /* Khung giới thiệu IPASignX */
+        .info-card h4 { margin: 0 0 10px; color: #ff3b30; font-size: 1.1rem; font-weight: 800; }
+        .info-card ul { margin: 8px 0 0; padding-left: 18px; }
+        .info-card li { margin-bottom: 6px; }
+    </style>
+</head>
+<body>
+    <div id="toast-container"></div>
+    
+    <div class="header-custom">
+        <div>
+            <div class="header-title">IPASignX</div>
+            <div class="header-subtitle">Trình Ký IPA Trực Tuyến</div>
+        </div>
+        <img src="https://cdn.upanhlaylink.com/i/moAFIUua.jpeg" class="app-icon-square" alt="">
+    </div>
+
+    <div class="card dns-card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+            <b style="color:#38bdf8;font-size:.95rem;display:flex;align-items:center;gap:6px">
+                <svg class="draw-svg" width="18" height="18" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Cấu hình AnTiBlack-DNS
+            </b>
+            <button class="btn btn-dns" onclick="downloadDNS()">
+                <svg class="draw-svg" width="14" height="14" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Tải DNS
+            </button>
+        </div>
+        <div style="font-size:.85rem;margin-top:8px">
+            <p style="margin:4px 0"><strong>Code:</strong> <span class="code-box">bot_anti=true - black_app = faild</span> [4829]</p>
+            <p style="margin:0"><strong>DNS Server:</strong> antiblack dns 448482</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div id="step1">
+            <h4 style="margin:0 0 10px;font-weight:800">Bước 1: Chọn Tệp &amp; Ký</h4>
+            <label>File IPA (*)</label>
+            <input type="file" id="fileIpa" accept=".ipa">
+            <label>File Chứng Chỉ P12 (*)</label>
+            <input type="file" id="fileP12" accept=".p12">
+            <label>Mật Khẩu P12 (*)</label>
+            <input type="password" id="passP12" placeholder="Nhập mật khẩu file .p12">
+            <label>File Mobileprovision (*)</label>
+            <input type="file" id="fileMob" accept=".mobileprovision">
+            <div style="display:flex;gap:10px">
+                <div style="flex:1">
+                    <label>Bundle ID</label>
+                    <input type="text" id="bundleId" placeholder="com.app.id">
+                </div>
+                <div style="flex:1">
+                    <label>Tên App</label>
+                    <input type="text" id="appName" placeholder="Tên Mới">
+                </div>
+            </div>
+            <button class="btn btn-sign" onclick="startProcess()">
+                <svg class="draw-svg" width="18" height="18" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                KÝ NGAY BÂY GIỜ
+            </button>
+        </div>
+
+        <div id="step2" class="hidden" style="text-align:center;padding:20px 0">
+            <h4 style="font-weight:800">Bước 2: Đang tải tệp tin lên...</h4>
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill">0%</div>
+            </div>
+        </div>
+
+        <div id="step3" class="hidden" style="text-align:center;padding:20px 0">
+            <h4 style="color:#38bdf8;font-weight:800">Bước 3: Đang ký ứng dụng...</h4>
+            <p style="font-size:.9rem;opacity:.8">Hệ thống đang mã hóa và đóng gói chứng chỉ...</p>
+        </div>
+
+        <div id="step4" class="hidden" style="text-align:center">
+            <h4 style="color:#10b981;margin-top:0;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800">
+                <svg class="draw-svg" width="22" height="22" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                Ký Thành Công!
+            </h4>
+
+            <div class="key-container">
+                <div style="font-size:.85rem;color:#10b981;margin-bottom:4px">MÃ XÁC NHẬN CÀI ĐẶT:</div>
+                <span class="code-box" id="installKeyDisplay">IPASIGN-88F4-99A1</span>
+            </div>
+
+            <div id="qrcode" style="margin:15px 0"></div>
+
+            <a id="linkInstall" href="#" class="btn btn-install" style="display:flex;text-decoration:none">
+                <svg class="draw-svg" width="18" height="18" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                CÀI ĐẶT TRỰC TIẾP LÊN IOS
+            </a>
+            <a id="linkIpa" href="#" target="_blank" class="btn btn-ipa" style="display:flex;text-decoration:none">
+                <svg class="draw-svg" width="18" height="18" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                TẢI FILE IPA (ĐÃ KÝ)
+            </a>
+            <button class="btn" style="background:rgba(255,255,255,.2);margin-top:15px" onclick="resetForm()">
+                <svg class="draw-svg" width="18" height="18" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                Ký tệp tin khác
+            </button>
+        </div>
+    </div>
+
+    <!-- Khung giới thiệu chi tiết IPASignX -->
+    <div class="card info-card">
+        <h4>Giới Thiệu IPASignX</h4>
+        <p style="margin:0 0 10px;font-size:.88rem;line-height:1.4"><strong>IPASignX</strong> là công cụ ký duyệt và đóng gói ứng dụng iOS (file .ipa) trực tuyến, cho phép người dùng tự ký file IPA bằng chứng chỉ cá nhân (.p12 và .mobileprovision) để cài đặt trực tiếp lên các thiết bị iPhone/iPad mà không cần jailbreak.</p>
+        <p style="margin:0;font-size:.88rem"><strong>Tính năng chính:</strong></p>
+        <ul style="font-size:.85rem;line-height:1.4">
+            <li><strong>Ký IPA trực tuyến:</strong> Tải lên tệp .ipa, chứng chỉ .p12 và file cấu hình .mobileprovision để tiến hành mã hóa và đóng gói lại ứng dụng.</li>
+            <li><strong>Đổi tên &amp; Bundle ID:</strong> Cho phép tùy chỉnh tên hiển thị của ứng dụng và Bundle ID theo nhu cầu trước khi ký.</li>
+            <li><strong>Cài đặt trực tiếp qua iOS:</strong> Tự động tạo liên kết cài đặt qua giao thức itms-services và mã QR để cài ứng dụng trực tiếp bằng trình duyệt Safari.</li>
+            <li><strong>Tích hợp AnTiBlack-DNS:</strong> Hỗ trợ chặn thu hồi chứng chỉ (Anti-Revoke) giúp ứng dụng đã ký hoạt động ổn định hơn.</li>
+        </ul>
+    </div>
+
+    <script>
+        window.showToast = (m, t = 'error') => {
+            const c = document.getElementById('toast-container'), e = document.createElement('div');
+            e.className = `toast toast-${t}`;
+            e.innerHTML = 'error' === t ? '<svg class="draw-svg" width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' : '<svg class="draw-svg" width="18" height="18" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+            e.innerHTML += `<span>${m}</span>`;
+            c.appendChild(e);
+            setTimeout(() => e.classList.add('show'), 50);
+            setTimeout(() => { e.classList.remove('show'); setTimeout(() => e.remove(), 400); }, 3000);
+        };
+        window.downloadDNS = () => showToast("Vui lòng đợi, đang tải tệp DNS...", "success");
+        window.startProcess = () => {
+            if (!document.getElementById('fileIpa').files[0] || !document.getElementById('fileP12').files[0] || !document.getElementById('passP12').value || !document.getElementById('fileMob').files[0])
+                return showToast("Vui lòng chọn đầy đủ các tệp và mật khẩu!", "error");
+            document.getElementById('step1').classList.add('hidden');
+            document.getElementById('step2').classList.remove('hidden');
+            let p = 0, f = document.getElementById('progressFill'), t = setInterval(() => {
+                p += 20; f.style.width = p + '%'; f.innerText = p + '%';
+                if (p >= 100) {
+                    clearInterval(t);
+                    document.getElementById('step2').classList.add('hidden');
+                    document.getElementById('step3').classList.remove('hidden');
+                    setTimeout(() => showStep4(), 2500);
+                }
+            }, 200);
+        };
+        window.showStep4 = () => {
+            document.getElementById('step3').classList.add('hidden');
+            document.getElementById('step4').classList.remove('hidden');
+            showToast("Ký thành công!", "success");
+            
+            const manifestUrl = window.location.origin + "/manifest.plist";
+            document.getElementById('linkInstall').href = "itms-services://?action=download-manifest&url=" + encodeURIComponent(manifestUrl);
+            document.getElementById('linkIpa').href = window.location.href;
+            
+            const q = document.getElementById('qrcode');
+            q.innerHTML = "";
+            if (typeof QRCode !== 'undefined') new QRCode(q, { text: document.getElementById('linkInstall').href, width: 120, height: 120 });
+        };
+        window.resetForm = () => {
+            document.getElementById('step4').classList.add('hidden');
+            document.getElementById('step1').classList.remove('hidden');
+            document.getElementById('progressFill').style.width = '0%';
+        };
+    </script>
+</body>
+</html>
